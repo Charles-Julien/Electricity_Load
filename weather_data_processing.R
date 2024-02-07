@@ -1,70 +1,121 @@
 ### Get meteo data
-library(dplyr)
 
-relative_folder_path <- "meteo"
+
+# Blatchord
+relative_folder_path <- "../meteo/blatchford"
 csv_files <- list.files(relative_folder_path, pattern = "\\.csv$", full.names = TRUE)
 concatenated_data <- data.frame()
 
-# Loop through each CSV file and concatenate the data
+# Loop and concatonate data
 is_first_file <- TRUE
 for (file in csv_files) {
   data <- read.csv(file, colClasses = rep("character"))
-  data = select(data, c(5,10,12,14,16,18))
-  concatenated_data <- bind_rows(concatenated_data, data)
-  is_first_file <- FALSE
+  data <- data[, c(5, 10, 12, 14, 16, 18, 24, 30)]  # Selecting specific columns
+  if (is_first_file) {
+    concatenated_data <- data
+    is_first_file <- FALSE
+  } else {
+    concatenated_data <- rbind(concatenated_data, data)  # Binding rows
+  }
 }
+
+meteo = concatenated_data
 
 meteo$Date = as.Date(meteo$Date.Time)
 meteo$MaxTemp = as.numeric(meteo$Max.Temp...C.)
 meteo$MinTemp = as.numeric(meteo$Min.Temp...C.)
 meteo$MeanTemp = as.numeric(meteo$Mean.Temp...C.)
-meteo$HDD = as.numeric(meteo$Heat.Deg.Days...C.)
-meteo$CDD = as.numeric(meteo$Cool.Deg.Days...C.)
+meteo$Precip = as.numeric(meteo$Total.Precip..mm.)
+meteo$MaxGust = as.numeric(meteo$Spd.of.Max.Gust..km.h.)
+
 
 # Overwrite HDD and CDD calculations
 meteo$HDD = ifelse(meteo$MeanTemp < 10, 10-meteo$MeanTemp, 0)
 meteo$CDD = ifelse(meteo$MeanTemp > 10, meteo$MeanTemp-10, 0)
 
-meteo = select(meteo, 7:12)
+meteo <- meteo[, 9:16]
 
-write.csv(meteo, file = "meteo_data.csv", row.names = FALSE)
-
-
-df <- read.csv('meteo_data.csv')
-df$Date = as.Date(df$Date)
-head(df)
+blatchford = meteo
 
 
-### Feature engineering and NA imputation
-library(lubridate)
 
-df$Month <- month(df$Date)
-df$Year <- year(df$Date)
-df$Dow <- wday(df$Date, label = TRUE)
+#### Get Namao AWOS data
 
-#df[!complete.cases(df),]
-#df[2099, c('MaxTemp','MeanTemp','HDD','CDD')] = c(23.3,	13.8,	4.2,	0.0)
+relative_folder_path <- "../meteo/namao"
+csv_files <- list.files(relative_folder_path, pattern = "\\.csv$", full.names = TRUE)
+concatenated_data <- data.frame()
 
-# COnsecutive hdd and cdd
-library(dplyr)
-library(zoo)
-df <- df %>%
-  mutate(ConsHDD = as.factor(ifelse(lag(HDD) > 0, 1, 0)))
+# Loop and concat data
+is_first_file <- TRUE
+for (file in csv_files) {
+  data <- read.csv(file, colClasses = rep("character"))
+  data <- data[, c(5, 10, 12, 14, 16, 18, 24, 30)]  # Selecting specific columns
+  if (is_first_file) {
+    concatenated_data <- data
+    is_first_file <- FALSE
+  } else {
+    concatenated_data <- rbind(concatenated_data, data)  # Binding rows
+  }
+}
 
-df <- df %>%
-  mutate(ConsCDD = as.factor(ifelse(lag(CDD) > 0, 1, 0)))
+meteo = concatenated_data
 
-df <- df %>%
-  mutate(HDD_1 = lag(HDD)
-         ,HDD_2 = lag(HDD, n=2)
-         ,CDD_1 = lag(CDD)
-         ,CDD_2 = lag(CDD, n=2))
+meteo$Date = as.Date(meteo$Date.Time)
+meteo$MaxTemp = as.numeric(meteo$Max.Temp...C.)
+meteo$MinTemp = as.numeric(meteo$Min.Temp...C.)
+meteo$MeanTemp = as.numeric(meteo$Mean.Temp...C.)
+#meteo$HDD = as.numeric(meteo$Heat.Deg.Days...C.)
+#meteo$CDD = as.numeric(meteo$Cool.Deg.Days...C.)
+meteo$Precip = as.numeric(meteo$Total.Precip..mm.)
+meteo$MaxGust = as.numeric(meteo$Spd.of.Max.Gust..km.h.)
+
+# Overwrite HDD and CDD calculations
+meteo$HDD = ifelse(meteo$MeanTemp < 10, 10-meteo$MeanTemp, 0)
+meteo$CDD = ifelse(meteo$MeanTemp > 10, meteo$MeanTemp-10, 0)
+
+meteo <- meteo[, 9:16]
+
+namao = meteo
 
 
-# get business days
-#install.packages("bizdays")
-library(bizdays)
+### Further data manipulation
+# Replace blatchford missing values with namao.
+merged_df <- merge(blatchford, namao, by = "Date", all = FALSE, suffixes = c("_bla", "_nam"))
 
+cols_to_replace <- c("MinTemp","MaxTemp","MeanTemp", "Precip", "MaxGust", "HDD", "CDD")
+for (col in cols_to_replace) {
+  merged_df[[paste0(col, "_bla")]][is.na(merged_df[[paste0(col, "_bla")]])] <- merged_df[[paste0(col, "_nam")]][is.na(merged_df[[paste0(col, "_bla")]])]
+}
+
+print(colSums(is.na(merged_df)))
+
+# Remaining missing values will be replaced by previous value 
+cols_to_replace <- c("MaxTemp_bla", "MinTemp_bla", "MeanTemp_bla", "Precip_bla", "MaxGust_bla", "HDD_bla", "CDD_bla")
+
+for (col in cols_to_replace) {
+  for (i in 2:length(merged_df[[col]])) {
+    if (is.na(merged_df[[col]][i])) {
+      merged_df[[col]][i] <- merged_df[[col]][i - 1]
+    }
+  }
+}
+
+print(colSums(is.na(merged_df)))
+
+df = merged_df[,1:8]
+
+# Date features
+df$Month <- month.name[as.integer(format(df$Date, "%m"))]
+df$Year <- as.integer(format(df$Date, "%Y"))
+df$DOW <- weekdays(df$Date)
+
+# Lag of temperature
+df$HDD_1 <- c(15, head(df$HDD_bla, -1))
+df$HDD_2 <- c(15, 15, head(df$HDD_bla, -2))
+df$CDD_1 <- c(0, head(df$CDD_bla, -1))
+df$CDD_2 <- c(0, 0, head(df$CDD_bla, -2))
+
+# Create business day indicator
 all_holidays_vector <- as.Date(c(
   "2011-01-01", "2011-02-21", "2011-04-15", "2011-05-23", "2011-07-01", "2011-09-05", "2011-10-10", "2011-11-11", "2011-12-25", "2011-12-26",
   "2012-01-01", "2012-02-21", "2012-04-15", "2012-05-23", "2012-07-01", "2012-09-05", "2012-10-10", "2012-11-11", "2012-12-25", "2012-12-26",
@@ -77,20 +128,28 @@ all_holidays_vector <- as.Date(c(
   "2019-01-01", "2019-02-18", "2019-04-19", "2019-05-20", "2019-07-01", "2019-09-02", "2019-10-14", "2019-11-11", "2019-12-25", "2019-12-26",
   "2020-01-01", "2020-02-17", "2020-04-10", "2020-05-18", "2020-07-01", "2020-09-07", "2020-10-12", "2020-11-11", "2020-12-25", "2020-12-26"
 ))
+df$IsBusinessDay <- ifelse(df$Date %in% all_holidays_vector | df$DOW %in% c("Saturday", "Sunday"), 0, 1)
 
-canadian_calendar <- create.calendar(
-  name = "Canada",
-  holidays = all_holidays_vector,
-  weekdays=c("saturday", "sunday")
-)
-df$IsBusinessDay <- as.factor(ifelse(is.bizday(df$Date, canadian_calendar), 1, 0))
+df$Holiday = ifelse(df$Date %in% all_holidays_vector, 1, 0)
+
+# How much colder than 5 degrees did it get?
+df$MaxHDD = ifelse(df$MinTemp_bla < 5, 5-df$MinTemp_bla, 0)
+# How much hotter than 15 degrees did it get?
+df$MaxCDD = ifelse(df$MaxTemp_bla > 15, df$MaxTemp_bla-15, 0)
+
+# Remove _bla
+names(df) <- gsub("_bla", "", names(df))
+
+# Convert to ordered factors
+df$Month <- factor(df$Month, levels = c("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"))
+df$DOW <- factor(df$DOW, levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
 
 
-saveRDS(df, 'weather.rds')
+# saveRDS(df, 'weather.rds')
+# 
+# write.csv(df, "weather.csv", row.names = FALSE)
 
-write.csv(df, "weather.csv", row.names = FALSE)
-
-test = readRDS("weather.rds")
+#test = readRDS("weather.rds")
 
 
 

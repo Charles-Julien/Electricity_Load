@@ -86,13 +86,6 @@ plot(df$MeanTemp, df$Edmonton,
 
 # Note that T ref was modified to be 10 degrees
 
-# Demand versus HDD (Accounting for ConsHDD)
-plot(df$HDD, df$Edmonton, 
-     xlab = "HDD", ylab = "Demand MW",
-     main = "Scatterplot of Demand versus HDD",
-     col = ifelse(df$ConsHDD == 1, "red", "blue"))
-legend("bottomright", legend = c("ConsHDD = 1 ", "ConsHDD = 0"), 
-       col = c("red", "blue"), pch = 1)
 
 # Demand versus HDD (Accounting for business day)
 plot(df$HDD, df$Edmonton, 
@@ -102,13 +95,6 @@ plot(df$HDD, df$Edmonton,
 legend("bottomright", legend = c("IsBusinessDay = 1", "IsBusinessDay = 0"), 
        col = c("red", "blue"), pch = 1)
 
-# Demand versus CDD (Accounting for ConsCDD)
-plot(df$CDD, df$Edmonton, 
-     xlab = "CDD", ylab = "Demand MW",
-     main = "Scatterplot of Demand versus CDD",
-     col = ifelse(df$ConsCDD == 1, "blue", "red"))
-legend("bottomright", legend = c("ConsCDD = 1 ", "ConsCDD = 0"), 
-       col = c("blue","red"), pch = 1)
 
 # Demand versus CDD (Accounting for business day)
 plot(df$CDD, df$Edmonton, 
@@ -118,5 +104,90 @@ plot(df$CDD, df$Edmonton,
 legend("bottomright", legend = c("IsBusinessDay = 1", "IsBusinessDay = 0"), 
        col = c("red","blue"), pch = 1)
 
-head(df)
+
+
+
+### Naive
+
+library(forecast)
+
+ts_daily <- ts(df$Edmonton, start = 1, frequency = 1)
+
+naive <- naive(ts_daily, h=1)
+
+# Compute bias, pbias, and MAPE
+
+start_index = which(df$Date == '2019-01-01')
+end_index = which(df$Date == '2019-12-31')
+
+forecast <- window(naive$fitted, start=start_index, end =end_index) 
+observed <- window(naive$x, start=start_index, end = end_index)
+bias1  <- mean(forecast-observed)
+pbias1 <- mean((forecast-observed)/observed)*100
+mape1  <- mean(abs((forecast-observed)/observed)*100)
+mse1 = mean((forecast - observed)^2)
+cat(bias1, pbias1, mape1, mse1)
+
+accuracy(naive)
+
+plot(observed, col = "blue", main = "Naive")
+lines(forecast, col = "red")
+legend("topright", legend = c("Observed", "Forecast"), col = c("blue", "red"), lty = 1)
+
+
+
+### Snaive
+ts_weekly <- ts(data = df$Edmonton, start = 1, frequency = 7)
+
+snaive <- snaive(ts_weekly, h = 1)
+
+forecast <- window(snaive$fitted, start=start_index/7, end =end_index/7) 
+observed <- window(snaive$x, start=start_index/7, end = end_index/7)
+bias2  <- mean(forecast-observed)
+pbias2 <- mean((forecast-observed)/observed)*100
+mape2  <- mean(abs((forecast-observed)/observed)*100)
+mse2 = mean((forecast - observed)^2)
+cat(bias2, pbias2, mape2, mse2)
+
+plot(observed, col = "blue", main = "Naive Weekly")
+lines(forecast, col = "red")
+legend("topright", legend = c("Observed", "Forecast"), col = c("blue", "red"), lty = 1)
+
+
+### Snaive Annual
+ts_annual <- ts(data = df$Edmonton, start = c(2011,1), frequency = 365)
+
+snaive <- snaive(ts_annual, h=1)
+snaive$fitted
+
+
+forecast <- window(snaive$fitted, start= c(2019,2), end =c(2020,2)) 
+observed <- window(snaive$x, start=c(2019,2), end = c(2020,2))
+bias3  <- mean(forecast-observed)
+pbias3 <- mean((forecast-observed)/observed)*100
+mape3  <- mean(abs((forecast-observed)/observed)*100)
+mse3 = mean((forecast - observed)^2)
+cat(bias3, pbias3, mape3, mse3)
+
+plot(observed, col = "blue", main = "Naive Annual")
+lines(forecast, col = "red")
+legend("topright", legend = c("Observed", "Forecast"), col = c("blue", "red"), lty = 1)
+
+
+### 3 Day rolling average
+roll <- zoo::rollmean(ts_daily, 3, align="right")
+# Use function naive to move three-month mean forward by one month
+roll_avg <- naive(roll, h=1)
+
+forecast <- window(roll_avg$fitted, start=start_index, end = end_index)
+observed <- window(ts_daily, start=start_index, end = end_index)
+bias4  <- mean(forecast-observed) 
+pbias4 <- mean((forecast-observed)/observed)*100
+mape4  <- mean(abs((forecast-observed)/observed)*100)
+mse4 = mean((forecast - observed)^2)
+cat(bias4, pbias4, mape4, mse4)
+
+plot(observed, col = "blue", main = "RollAvg")
+lines(forecast, col = "red")
+legend("topright", legend = c("Observed", "Forecast"), col = c("blue", "red"), lty = 1)
 
