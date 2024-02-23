@@ -120,10 +120,7 @@ rollavg <- c(c(NA,NA,NA), roll)
 performance = perf_func('roll_avg' ,val_indices, rollavg, ts_daily, performance)
 
 
-# To get a better view of the data
-head(performance)
-reshape(performance[,c(1,2,3)], idvar = "model_name", timevar = "season", direction = "wide")
-
+# Part 2
 
 # Simple exponential smoothing
 in.sample = ts_daily[train_indices]
@@ -144,6 +141,10 @@ for (i in 1:(length(out.sample)-1)) {
 
 # Keep indices integrity
 predictions <- c(rep(NA, length(in.sample)), predictions)
-
 performance = perf_func('ses', val_indices, predictions, ts_daily, performance)
 
+
+# To get a better view of the data
+head(performance)
+reshape(performance[,c(1,2,3)], idvar = "model_name", timevar = "season", direction = "wide")
+aggregate(as.numeric(MAPE) ~ model_name, data = performance, FUN = mean)
