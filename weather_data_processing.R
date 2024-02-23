@@ -30,8 +30,8 @@ meteo$MaxGust = as.numeric(meteo$Spd.of.Max.Gust..km.h.)
 
 
 # Overwrite HDD and CDD calculations
-meteo$HDD = ifelse(meteo$MeanTemp < 10, 10-meteo$MeanTemp, 0)
-meteo$CDD = ifelse(meteo$MeanTemp > 10, meteo$MeanTemp-10, 0)
+meteo$HDD = ifelse(meteo$MeanTemp < 8, 8-meteo$MeanTemp, 0)
+meteo$CDD = ifelse(meteo$MeanTemp > 13, meteo$MeanTemp-13, 0)
 
 meteo <- meteo[, 9:16]
 
@@ -70,8 +70,8 @@ meteo$Precip = as.numeric(meteo$Total.Precip..mm.)
 meteo$MaxGust = as.numeric(meteo$Spd.of.Max.Gust..km.h.)
 
 # Overwrite HDD and CDD calculations
-meteo$HDD = ifelse(meteo$MeanTemp < 10, 10-meteo$MeanTemp, 0)
-meteo$CDD = ifelse(meteo$MeanTemp > 10, meteo$MeanTemp-10, 0)
+meteo$HDD = ifelse(meteo$MeanTemp < 8, 8-meteo$MeanTemp, 0)
+meteo$CDD = ifelse(meteo$MeanTemp > 13, meteo$MeanTemp-13, 0)
 
 meteo <- meteo[, 9:16]
 
@@ -144,10 +144,12 @@ names(df) <- gsub("_bla", "", names(df))
 df$Month <- factor(df$Month, levels = c("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"))
 df$DOW <- factor(df$DOW, levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
 
+# Create weekend variable
+df$wknd = ifelse(df$DOW %in% c("Saturday", "Sunday"), 1, 0)
 
-# saveRDS(df, 'weather.rds')
+saveRDS(df, 'weather.rds')
 # 
-# write.csv(df, "weather.csv", row.names = FALSE)
+write.csv(df, "weather.csv", row.names = FALSE)
 
 #test = readRDS("weather.rds")
 

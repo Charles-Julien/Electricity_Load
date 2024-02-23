@@ -38,7 +38,10 @@ The rest of the data does not have missing values. These data points were remove
 ### Get daily max value
 aeso$DT_MST <- as.POSIXct(aeso$DT_MST, format = "%Y-%m-%d %H:%M:%S")
 aeso$Date <- as.Date(aeso$DT_MST)
-max <- aggregate(Edmonton ~ Date, data = aeso, FUN = max, na.rm = TRUE)
+#max <- aggregate(Edmonton ~ Date, data = aeso, FUN = max, na.rm = TRUE)
+
+max <- aggregate(aeso$Edmonton, by = list(Date = aeso$Date), FUN = max, na.rm = TRUE)
+colnames(max) <- c("Date", "Edmonton")
 
 ### Creating timeSeries
 ts = timeSeries(max$Edmonton,
@@ -146,7 +149,7 @@ Observations:
 ```{r Merge, echo=FALSE, warning=FALSE}
 # Merge data
 df <- merge(max, weather, by = "Date", all = FALSE)
-head(df)
+head(df, n =200)
 ```
 
 This is an overview of the covariates that could be useful in our analysis. The data was retrieved from Environment Canada API. The data was collected by the Blatchford weather station in Edmonton. Missing values were imputed using nearby weather station (15 km radius). Some variables were engineered like HDD, CDD and other variables derived from them, as well as business day.

@@ -79,6 +79,9 @@ legend("bottomright", legend=c("Jan 4-10, 2015","Jun 5-11, 2015"),
 weather = readRDS("weather.rds")
 df <- merge(max, weather, by = "Date", all = FALSE)
 
+head(df)
+summary(df)
+
 # Demand versus temperature
 plot(df$MeanTemp, df$Edmonton, 
      xlab = "MeanTemp", ylab = "Demand MW",
@@ -103,6 +106,22 @@ plot(df$CDD, df$Edmonton,
      col = ifelse(df$IsBusinessDay == 1,"red","blue"))
 legend("bottomright", legend = c("IsBusinessDay = 1", "IsBusinessDay = 0"), 
        col = c("red","blue"), pch = 1)
+
+df$wind = as.factor(ifelse(df$MaxGust > mean(df$MaxGust),0,1))
+
+plot(df$wind, df$Edmonton, 
+     xlab = "Wind above average", ylab = "Demand MW",
+     main = "Demand versus wind (1 = above average)")
+
+
+
+# Day of week
+plot(df$DOW, df$Edmonton, 
+     xlab = "DOW", ylab = "Demand MW",
+     main = "Demand versus DOW",
+     )
+
+
 
 
 
